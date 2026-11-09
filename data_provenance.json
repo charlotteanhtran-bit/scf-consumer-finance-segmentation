@@ -1,0 +1,8 @@
+{
+  "downloaded_file": "SCFP2022.csv",
+  "sha256": "1b8a299b1d55d1fd26ecc5db9a94e5d0aa0626991f33ce3ceb4b1599f3103ab9",
+  "bytes": 21907408,
+  "retrieved_utc": "2026-11-09",
+  "source_url": "https://raw.githubusercontent.com/vaibhavselkar/Consumer-finance-in-USA-2022/main/SCFP2022.csv",
+  "note": "Public mirror; checksum identifies reviewed bytes. Dataset rights remain with upstream sources."
+}

@@ -21,31 +21,39 @@ st.caption("SCF 2022 · exploratory K-means clusters · public-use data")
 @st.cache_data(show_spinner="Downloading and preparing the public SCF data…")
 def get_sample():
     raw = load_raw_data()
-    return raw.shape, prepare_sample(raw)
+    return raw.shape, raw["YY1"].nunique(), prepare_sample(raw)
 
 try:
-    raw_shape, df = get_sample()
+    raw_shape, source_families, df = get_sample()
 except Exception as exc:
     st.error(f"Could not prepare SCF data: {exc}")
     st.stop()
 
+@st.cache_data
+def cached_diagnostics(x):
+    return evaluate_k(x)
+
+@st.cache_resource
+def cached_model(x, k):
+    return fit_kmeans_pipeline(x, k=k)
+
 ranked = rank_features(df)
 default_features = ranked.head(5).index.tolist()
 x_two = scaled_matrix(df, TWO_FEATURES)
-diagnostics = evaluate_k(x_two)
+diagnostics = cached_diagnostics(x_two)
 
 with st.sidebar:
     st.header("Analysis controls")
     k = st.slider("Number of clusters", min_value=2, max_value=8, value=4)
     features = st.multiselect("Multi-feature set", options=FINANCIAL_FEATURES,
                               default=default_features, max_selections=5)
-    if not features:
-        st.warning("Choose at least one financial feature.")
+    if len(features) < 2:
+        st.warning("Choose at least two financial features for the PCA view.")
         st.stop()
 
 x_multi = scaled_matrix(df, features)
-two_model = fit_kmeans_pipeline(x_two, k=k)
-multi_model = fit_kmeans_pipeline(x_multi, k=k)
+two_model = cached_model(x_two, k)
+multi_model = cached_model(x_multi, k)
 two_labels = two_model.named_steps["kmeans"].labels_
 multi_labels = multi_model.named_steps["kmeans"].labels_
 pca_input = multi_model.named_steps["standardscaler"].transform(x_multi)
@@ -54,7 +62,7 @@ coords = pca.fit_transform(pca_input)
 
 top = st.columns(4)
 top[0].metric("Source rows", f"{raw_shape[0]:,}")
-top[1].metric("SCF families", f"{df['YY1'].nunique():,}")
+top[1].metric("SCF families", f"{source_families:,}")
 top[2].metric("Credit-fearful, net worth below $2m", f"{len(df):,}")
 top[3].metric("PCA variance shown", f"{pca.explained_variance_ratio_.sum():.1%}")
 tabs = st.tabs(["Two-feature clusters", "Multi-feature segments", "Feature diagnostics", "Data notes"])
@@ -70,7 +78,7 @@ with tabs[0]:
                      title="K-means clusters from DEBT and HOUSES (log1p dollar values)",
                      labels={"cluster": "Cluster"})
     fig.update_layout(legend_title_text="Cluster")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.info(f"Silhouette score: {silhouette_score(two_model.named_steps['standardscaler'].transform(x_two), two_labels):.3f}. It summarizes separation in the scaled feature space; it is not an accuracy score.")
 
 with tabs[1]:
@@ -80,14 +88,19 @@ with tabs[1]:
         cloud[col] = df[col].to_numpy()
     fig = px.scatter(cloud, x="PC1", y="PC2", color="cluster", hover_data=FINANCIAL_FEATURES,
                      opacity=0.68, title="PCA projection of standardized multi-feature K-means clusters")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     st.caption("PC1 and PC2 are linear combinations of selected standardized features. "
                f"Together they retain {pca.explained_variance_ratio_.sum():.1%} of transformed variance.")
     profile = df.assign(cluster=multi_labels).groupby("cluster").apply(
         lambda g: pd.Series({col: np.average(g[col], weights=g["WGT"]) for col in FINANCIAL_FEATURES}),
         include_groups=False)
     st.markdown("#### Survey-weighted mean profile (USD in 2022 survey units)")
-    st.dataframe(profile.style.format("{:,.0f}"), use_container_width=True)
+    profile.insert(0, "sample_households", df.assign(cluster=multi_labels).groupby("cluster").size())
+    profile.insert(1, "weighted_share", df.assign(cluster=multi_labels).groupby("cluster")["WGT"].sum() / df["WGT"].sum())
+    st.dataframe(profile.style.format({c: "{:,.0f}" for c in profile.columns if c != "weighted_share"}).format({"weighted_share": "{:.1%}"}), width="stretch")
+    st.caption("Weighted shares describe this filtered sample. Cluster numbers are arbitrary; means are not typical-household medians.")
+    st.markdown("#### Unweighted median profile (USD)")
+    st.dataframe(df.assign(cluster=multi_labels).groupby("cluster")[FINANCIAL_FEATURES].median())
     st.metric("Agreement with two-feature clustering (ARI)", f"{adjusted_rand_score(two_labels, multi_labels):.3f}")
 
 with tabs[2]:
@@ -100,8 +113,13 @@ with tabs[2]:
                       yaxis=dict(title="Inertia", side="left"),
                       yaxis2=dict(title="Silhouette", overlaying="y", side="right", range=[-1, 1]),
                       legend=dict(orientation="h"))
-    st.plotly_chart(fig, use_container_width=True)
-    st.dataframe(ranked.rename("trimmed variance after signed log1p").to_frame(), use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
+    st.markdown("#### Multi-feature cluster-count diagnostics")
+    st.dataframe(pd.DataFrame(cached_diagnostics(x_multi)))
+    rule_labels = df["DEBT"].gt(0).astype(int) * 2 + df["HOUSES"].gt(0).astype(int)
+    st.metric("Two-feature agreement with debt/home presence rules (ARI)", f"{adjusted_rand_score(two_labels, rule_labels):.3f}")
+    st.caption("A high agreement means clusters largely reproduce whether debt and home value are positive. The five candidate features are fixed; variance ranking does not select a smaller subset.")
+    st.dataframe(ranked.rename("trimmed variance after signed log1p").to_frame(), width="stretch")
 
 with tabs[3]:
     st.subheader("Source, selection, and interpretation")
@@ -112,4 +130,4 @@ with tabs[3]:
     - Cluster IDs are arbitrary labels. They are not validated risk classes and must not be used to approve, price, or deny credit.
     - The SCF is a complex survey. K-means is unweighted; family weights are used for descriptive cluster profiles only. This is not full design-based population inference.
     """)
-    st.dataframe(df[["YY1", "TURNFEAR", "NETWORTH", *FINANCIAL_FEATURES, "WGT"]].head(25), use_container_width=True)
+    st.dataframe(df[["YY1", "TURNFEAR", *FINANCIAL_FEATURES, "WGT"]].head(25), width="stretch")

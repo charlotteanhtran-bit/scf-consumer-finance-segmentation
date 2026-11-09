@@ -1,0 +1,250 @@
+{
+  "source_rows": 22975,
+  "source_columns": 356,
+  "source_families": 4595,
+  "first_implicate_rows": 4595,
+  "credit_fear_and_under_2m_rows": 732,
+  "filtered_sample_weight_sum": 4745738.829498469,
+  "selected_multifeatures": [
+    "NETWORTH",
+    "HOUSES",
+    "DEBT",
+    "ASSET",
+    "INCOME"
+  ],
+  "trimmed_variance": {
+    "NETWORTH": 46.463556749392524,
+    "HOUSES": 26.26294983895193,
+    "DEBT": 13.131162402897836,
+    "ASSET": 2.972018803201915,
+    "INCOME": 0.2868224131895205
+  },
+  "k_diagnostics_two_feature": [
+    {
+      "k": 2,
+      "inertia": 653.0928972950927,
+      "silhouette": 0.6284968381326921
+    },
+    {
+      "k": 3,
+      "inertia": 172.22296802625476,
+      "silhouette": 0.7773607648979639
+    },
+    {
+      "k": 4,
+      "inertia": 91.02486278016836,
+      "silhouette": 0.8096256597791719
+    },
+    {
+      "k": 5,
+      "inertia": 50.70827663606618,
+      "silhouette": 0.739797903793366
+    },
+    {
+      "k": 6,
+      "inertia": 33.287437838844355,
+      "silhouette": 0.6942946479252573
+    },
+    {
+      "k": 7,
+      "inertia": 23.226779542681314,
+      "silhouette": 0.6506100656440649
+    },
+    {
+      "k": 8,
+      "inertia": 18.427916981322237,
+      "silhouette": 0.6528730915297102
+    },
+    {
+      "k": 9,
+      "inertia": 14.53218116874373,
+      "silhouette": 0.6021139115475747
+    },
+    {
+      "k": 10,
+      "inertia": 12.346577747363682,
+      "silhouette": 0.5956273079466841
+    },
+    {
+      "k": 11,
+      "inertia": 10.704763870447952,
+      "silhouette": 0.587288665059496
+    },
+    {
+      "k": 12,
+      "inertia": 9.27586190448423,
+      "silhouette": 0.5769085188254512
+    }
+  ],
+  "k_diagnostics_multi_feature": [
+    {
+      "k": 2,
+      "inertia": 2422.374964126295,
+      "silhouette": 0.3535534700575243
+    },
+    {
+      "k": 3,
+      "inertia": 1801.1937350648052,
+      "silhouette": 0.4108324734984642
+    },
+    {
+      "k": 4,
+      "inertia": 1291.3919982644015,
+      "silhouette": 0.45866710071223693
+    },
+    {
+      "k": 5,
+      "inertia": 1008.511621531518,
+      "silhouette": 0.4694649315686633
+    },
+    {
+      "k": 6,
+      "inertia": 838.8065020435408,
+      "silhouette": 0.47399075199429336
+    },
+    {
+      "k": 7,
+      "inertia": 737.0797824825576,
+      "silhouette": 0.4790990789278895
+    },
+    {
+      "k": 8,
+      "inertia": 656.4473424486133,
+      "silhouette": 0.4251787308072347
+    },
+    {
+      "k": 9,
+      "inertia": 581.9409938862987,
+      "silhouette": 0.4099239548361044
+    },
+    {
+      "k": 10,
+      "inertia": 508.69477479859705,
+      "silhouette": 0.3879010909556546
+    },
+    {
+      "k": 11,
+      "inertia": 456.96855377447434,
+      "silhouette": 0.4107210836963669
+    },
+    {
+      "k": 12,
+      "inertia": 412.53604349817186,
+      "silhouette": 0.4100719464503814
+    }
+  ],
+  "two_feature_presence_rule_ari": 0.9721352135375705,
+  "resample_stability": {
+    "replicates": 20,
+    "mean_ari": 0.9804690624140875,
+    "min_ari": 0.9327442185122489,
+    "note": "Agreement on original households; exploratory perturbation diagnostic, not a survey-design confidence interval."
+  },
+  "implicate_sensitivity": [
+    {
+      "implicate": 2,
+      "eligible_households": 733,
+      "common_households": 732,
+      "ari_common_households": 0.9427023264433859
+    },
+    {
+      "implicate": 3,
+      "eligible_households": 734,
+      "common_households": 732,
+      "ari_common_households": 0.9432303511453545
+    },
+    {
+      "implicate": 4,
+      "eligible_households": 738,
+      "common_households": 732,
+      "ari_common_households": 0.9431445131222463
+    },
+    {
+      "implicate": 5,
+      "eligible_households": 735,
+      "common_households": 731,
+      "ari_common_households": 0.9290608131811531
+    }
+  ],
+  "cluster_sample_sizes": {
+    "0": 223,
+    "1": 150,
+    "2": 156,
+    "3": 203
+  },
+  "cluster_weighted_shares": {
+    "0": 0.2769337138058503,
+    "1": 0.17363688824801876,
+    "2": 0.19935395176873696,
+    "3": 0.350075446177394
+  },
+  "cluster_unweighted_medians": {
+    "0": {
+      "DEBT": 12500.0,
+      "HOUSES": 0.0,
+      "ASSET": 34000.0,
+      "INCOME": 49721.943888,
+      "NETWORTH": 13500.0
+    },
+    "1": {
+      "DEBT": 0.0,
+      "HOUSES": 0.0,
+      "ASSET": 4090.0,
+      "INCOME": 22699.148297,
+      "NETWORTH": 3905.0
+    },
+    "2": {
+      "DEBT": 30640.0,
+      "HOUSES": 0.0,
+      "ASSET": 7970.0,
+      "INCOME": 32967.810621,
+      "NETWORTH": -15149.0
+    },
+    "3": {
+      "DEBT": 152420.0,
+      "HOUSES": 240000.0,
+      "ASSET": 346600.0,
+      "INCOME": 70259.268537,
+      "NETWORTH": 162400.0
+    }
+  },
+  "two_feature_silhouette_k4": 0.8096256597791719,
+  "multi_feature_silhouette_k4": 0.45866710071223693,
+  "agreement_between_feature_sets_ari": 0.6195647648881436,
+  "multi_feature_seed_stability_mean_ari": 1.0,
+  "pca_explained_variance_ratio": [
+    0.48086661331854447,
+    0.23443075749001452
+  ],
+  "cluster_weighted_profiles": {
+    "0": {
+      "DEBT_weighted_mean": 25644.645689127978,
+      "HOUSES_weighted_mean": 0.0,
+      "ASSET_weighted_mean": 87133.60980110928,
+      "INCOME_weighted_mean": 59009.2448948046,
+      "NETWORTH_weighted_mean": 61488.96411198129
+    },
+    "1": {
+      "DEBT_weighted_mean": 3389.8081138331413,
+      "HOUSES_weighted_mean": 14612.938510684595,
+      "ASSET_weighted_mean": 50996.68688406624,
+      "INCOME_weighted_mean": 26234.791664303135,
+      "NETWORTH_weighted_mean": 47606.8787702331
+    },
+    "2": {
+      "DEBT_weighted_mean": 46965.56444009431,
+      "HOUSES_weighted_mean": 3161.120393638137,
+      "ASSET_weighted_mean": 17058.06720576616,
+      "INCOME_weighted_mean": 38433.91439918746,
+      "NETWORTH_weighted_mean": -29907.497234328155
+    },
+    "3": {
+      "DEBT_weighted_mean": 183674.66475018946,
+      "HOUSES_weighted_mean": 282798.7877897264,
+      "ASSET_weighted_mean": 417000.62232187483,
+      "INCOME_weighted_mean": 77031.57809965611,
+      "NETWORTH_weighted_mean": 233325.9575716854
+    }
+  },
+  "interpretation": "Exploratory unweighted segments; WGT is used for descriptive profiles only, not creditworthiness or lending labels."
+}

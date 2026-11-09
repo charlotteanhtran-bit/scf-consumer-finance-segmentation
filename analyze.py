@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from itertools import combinations
 from pathlib import Path
 from urllib.request import urlopen
@@ -27,12 +28,19 @@ FINANCIAL_FEATURES = ["DEBT", "HOUSES", "ASSET", "INCOME", "NETWORTH"]
 TWO_FEATURES = ["DEBT", "HOUSES"]
 
 
+def verify_source(path: Path) -> None:
+    manifest = json.loads((ROOT / "data_provenance.json").read_text())
+    if hashlib.sha256(path.read_bytes()).hexdigest() != manifest["sha256"]:
+        raise ValueError("Source checksum changed. Review the upstream data before updating data_provenance.json.")
+
+
 def download_data(path: Path = DATA_PATH) -> Path:
     """Download the public SCF CSV once and cache it locally."""
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
         with urlopen(DATA_URL, timeout=60) as response:
             path.write_bytes(response.read())
+    verify_source(path)
     return path
 
 
@@ -47,11 +55,11 @@ def load_raw_data(path: Path | None = None) -> pd.DataFrame:
     return df
 
 
-def prepare_sample(df: pd.DataFrame) -> pd.DataFrame:
+def prepare_sample(df: pd.DataFrame, implicate: int = 1) -> pd.DataFrame:
     """Keep one imputation per family and define the Project 6 subgroup."""
     out = df.copy()
     out["IMPLIC"] = out["Y1"] - 10 * out["YY1"]
-    out = out.loc[out["IMPLIC"].eq(1)].copy()
+    out = out.loc[out["IMPLIC"].eq(implicate)].copy()
     if out["YY1"].duplicated().any():
         raise ValueError("Expected one row per family after selecting implicate 1.")
     out = out.loc[out["TURNFEAR"].eq(1) & out["NETWORTH"].lt(2_000_000)].copy()
@@ -106,6 +114,33 @@ def evaluate_k(x: pd.DataFrame, k_values=range(2, 13)) -> list[dict]:
     return rows
 
 
+def resample_stability(sample, features, reference):
+    """Refit preprocessing and clusters on 20 household bootstrap samples."""
+    rng = np.random.default_rng(42)
+    x = scaled_matrix(sample, features)
+    scores = []
+    for _ in range(20):
+        boot = x.iloc[rng.integers(0, len(x), len(x))]
+        model = fit_kmeans_pipeline(boot)
+        scores.append(float(adjusted_rand_score(reference, model.predict(x))))
+    return {"replicates": 20, "mean_ari": float(np.mean(scores)), "min_ari": float(np.min(scores)),
+            "note": "Agreement on original households; exploratory perturbation diagnostic, not a survey-design confidence interval."}
+
+
+def implicate_sensitivity(raw, reference_sample, reference_labels, features):
+    reference = pd.Series(reference_labels, index=reference_sample.YY1)
+    results = []
+    for implicate in range(2, 6):
+        sample = prepare_sample(raw, implicate)
+        model = fit_kmeans_pipeline(scaled_matrix(sample, features))
+        labels = pd.Series(model.named_steps["kmeans"].labels_, index=sample.YY1)
+        common = reference.index.intersection(labels.index)
+        results.append({"implicate": implicate, "eligible_households": len(sample),
+                        "common_households": len(common),
+                        "ari_common_households": float(adjusted_rand_score(reference.loc[common], labels.loc[common]))})
+    return results
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     raw = load_raw_data()
@@ -150,6 +185,13 @@ def main() -> None:
         "selected_multifeatures": multi_features,
         "trimmed_variance": {key: float(value) for key, value in features.items()},
         "k_diagnostics_two_feature": k_scores,
+        "k_diagnostics_multi_feature": evaluate_k(x_multi),
+        "two_feature_presence_rule_ari": float(adjusted_rand_score(labels_two, sample["DEBT"].gt(0).astype(int) * 2 + sample["HOUSES"].gt(0).astype(int))),
+        "resample_stability": resample_stability(sample, multi_features, labels_multi),
+        "implicate_sensitivity": implicate_sensitivity(raw, sample, labels_multi, multi_features),
+        "cluster_sample_sizes": assignments.groupby("cluster_multi_feature").size().to_dict(),
+        "cluster_weighted_shares": (assignments.groupby("cluster_multi_feature")["WGT"].sum() / assignments["WGT"].sum()).to_dict(),
+        "cluster_unweighted_medians": assignments.groupby("cluster_multi_feature")[FINANCIAL_FEATURES].median().to_dict(orient="index"),
         "two_feature_silhouette_k4": float(silhouette_score(
             model_two.named_steps["standardscaler"].transform(x_two), labels_two
         )),
