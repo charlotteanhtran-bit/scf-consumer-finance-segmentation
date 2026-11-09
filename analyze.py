@@ -1,4 +1,4 @@
-"""Reproducible SCF subgroup preparation and clustering analysis."""
+"""Prepare the 2022 SCF sample and compare financial clusters."""
 from __future__ import annotations
 
 import json
@@ -45,7 +45,7 @@ def download_data(path: Path = DATA_PATH) -> Path:
 
 
 def load_raw_data(path: Path | None = None) -> pd.DataFrame:
-    """Read source data and verify fields needed downstream."""
+    """Read the CSV and check the columns used by the analysis."""
     source = path or download_data()
     df = pd.read_csv(source, low_memory=False)
     required = {"YY1", "Y1", "WGT", "TURNFEAR", "NETWORTH", *FINANCIAL_FEATURES}
@@ -56,7 +56,7 @@ def load_raw_data(path: Path | None = None) -> pd.DataFrame:
 
 
 def prepare_sample(df: pd.DataFrame, implicate: int = 1) -> pd.DataFrame:
-    """Keep one imputation per family and define the Project 6 subgroup."""
+    """Keep one imputed record per family, then apply the credit-fear filter."""
     out = df.copy()
     out["IMPLIC"] = out["Y1"] - 10 * out["YY1"]
     out = out.loc[out["IMPLIC"].eq(implicate)].copy()
@@ -74,7 +74,7 @@ def prepare_sample(df: pd.DataFrame, implicate: int = 1) -> pd.DataFrame:
 
 
 def transform_features(frame: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
-    """Signed log transform dollar values to reduce long-tail leverage."""
+    """Reduce skew in dollar values while preserving zeros and negative values."""
     x = frame[columns].astype(float).copy()
     return np.sign(x) * np.log1p(np.abs(x))
 

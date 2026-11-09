@@ -1,4 +1,4 @@
-"""Interactive Streamlit dashboard for the SCF consumer segmentation."""
+"""Explore financial groups in the 2022 SCF sample."""
 from __future__ import annotations
 
 import streamlit as st
@@ -16,7 +16,7 @@ from analyze import (
 
 st.set_page_config(page_title="SCF Consumer Segmentation", page_icon="📊", layout="wide")
 st.title("U.S. Consumer Finance Segmentation")
-st.caption("SCF 2022 · exploratory K-means clusters · public-use data")
+st.caption("Explore debt, housing, income, assets, and net worth in the 2022 SCF.")
 
 @st.cache_data(show_spinner="Downloading and preparing the public SCF data…")
 def get_sample():
@@ -43,9 +43,9 @@ x_two = scaled_matrix(df, TWO_FEATURES)
 diagnostics = cached_diagnostics(x_two)
 
 with st.sidebar:
-    st.header("Analysis controls")
+    st.header("Choose your model")
     k = st.slider("Number of clusters", min_value=2, max_value=8, value=4)
-    features = st.multiselect("Multi-feature set", options=FINANCIAL_FEATURES,
+    features = st.multiselect("Financial variables", options=FINANCIAL_FEATURES,
                               default=default_features, max_selections=5)
     if len(features) < 2:
         st.warning("Choose at least two financial features for the PCA view.")
@@ -63,7 +63,7 @@ coords = pca.fit_transform(pca_input)
 top = st.columns(4)
 top[0].metric("Source rows", f"{raw_shape[0]:,}")
 top[1].metric("SCF families", f"{source_families:,}")
-top[2].metric("Credit-fearful, net worth below $2m", f"{len(df):,}")
+top[2].metric("Families in the filtered sample", f"{len(df):,}")
 top[3].metric("PCA variance shown", f"{pca.explained_variance_ratio_.sum():.1%}")
 tabs = st.tabs(["Two-feature clusters", "Multi-feature segments", "Feature diagnostics", "Data notes"])
 
@@ -82,15 +82,15 @@ with tabs[0]:
     st.info(f"Silhouette score: {silhouette_score(two_model.named_steps['standardscaler'].transform(x_two), two_labels):.3f}. It summarizes separation in the scaled feature space; it is not an accuracy score.")
 
 with tabs[1]:
-    st.subheader("Multi-dimensional finance profiles, shown through PCA")
+    st.subheader("Compare financial profiles")
     cloud = pd.DataFrame({"PC1": coords[:, 0], "PC2": coords[:, 1], "cluster": multi_labels.astype(str)})
     for col in FINANCIAL_FEATURES:
         cloud[col] = df[col].to_numpy()
     fig = px.scatter(cloud, x="PC1", y="PC2", color="cluster", hover_data=FINANCIAL_FEATURES,
-                     opacity=0.68, title="PCA projection of standardized multi-feature K-means clusters")
+                     opacity=0.68, title="Financial groups shown in two dimensions")
     st.plotly_chart(fig, width="stretch")
-    st.caption("PC1 and PC2 are linear combinations of selected standardized features. "
-               f"Together they retain {pca.explained_variance_ratio_.sum():.1%} of transformed variance.")
+    st.caption("The chart compresses the selected variables into two axes. "
+               f"Together they retain {pca.explained_variance_ratio_.sum():.1%} of the variation after transformation and scaling.")
     profile = df.assign(cluster=multi_labels).groupby("cluster").apply(
         lambda g: pd.Series({col: np.average(g[col], weights=g["WGT"]) for col in FINANCIAL_FEATURES}),
         include_groups=False)
@@ -98,18 +98,18 @@ with tabs[1]:
     profile.insert(0, "sample_households", df.assign(cluster=multi_labels).groupby("cluster").size())
     profile.insert(1, "weighted_share", df.assign(cluster=multi_labels).groupby("cluster")["WGT"].sum() / df["WGT"].sum())
     st.dataframe(profile.style.format({c: "{:,.0f}" for c in profile.columns if c != "weighted_share"}).format({"weighted_share": "{:.1%}"}), width="stretch")
-    st.caption("Weighted shares describe this filtered sample. Cluster numbers are arbitrary; means are not typical-household medians.")
+    st.caption("Shares refer to the filtered sample. Cluster numbers are just labels. Compare the means with the medians below to see how large values affect each profile.")
     st.markdown("#### Unweighted median profile (USD)")
     st.dataframe(df.assign(cluster=multi_labels).groupby("cluster")[FINANCIAL_FEATURES].median())
     st.metric("Agreement with two-feature clustering (ARI)", f"{adjusted_rand_score(two_labels, multi_labels):.3f}")
 
 with tabs[2]:
-    st.subheader("Select k and inspect candidate feature variance")
+    st.subheader("Compare cluster counts and variables")
     diag = pd.DataFrame(diagnostics)
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=diag.k, y=diag.inertia, mode="lines+markers", name="Inertia", yaxis="y"))
     fig.add_trace(go.Scatter(x=diag.k, y=diag.silhouette, mode="lines+markers", name="Silhouette", yaxis="y2"))
-    fig.update_layout(title="k diagnostic on DEBT + HOUSES", xaxis_title="Number of clusters",
+    fig.update_layout(title="Cluster counts for debt and home value", xaxis_title="Number of clusters",
                       yaxis=dict(title="Inertia", side="left"),
                       yaxis2=dict(title="Silhouette", overlaying="y", side="right", range=[-1, 1]),
                       legend=dict(orientation="h"))
@@ -118,16 +118,16 @@ with tabs[2]:
     st.dataframe(pd.DataFrame(cached_diagnostics(x_multi)))
     rule_labels = df["DEBT"].gt(0).astype(int) * 2 + df["HOUSES"].gt(0).astype(int)
     st.metric("Two-feature agreement with debt/home presence rules (ARI)", f"{adjusted_rand_score(two_labels, rule_labels):.3f}")
-    st.caption("A high agreement means clusters largely reproduce whether debt and home value are positive. The five candidate features are fixed; variance ranking does not select a smaller subset.")
+    st.caption("When this agreement is high, the model mostly separates families by whether they have debt and home value. The table below ranks variation across the five available variables; it does not choose which ones to use.")
     st.dataframe(ranked.rename("trimmed variance after signed log1p").to_frame(), width="stretch")
 
 with tabs[3]:
-    st.subheader("Source, selection, and interpretation")
+    st.subheader("About this sample")
     st.markdown("""
-    - Source: Federal Reserve 2022 SCF public data; CSV obtained from a public mirror documented in README.
-    - The source stores five imputation records per family. We keep implicate 1 using the Federal Reserve's documented Y1 and YY1 construction so each family is counted once.
-    - The dashboard analyzes TURNFEAR == 1 and net worth below $2 million, following Project 6's subgroup definition.
-    - Cluster IDs are arbitrary labels. They are not validated risk classes and must not be used to approve, price, or deny credit.
-    - The SCF is a complex survey. K-means is unweighted; family weights are used for descriptive cluster profiles only. This is not full design-based population inference.
+    - Data: the Federal Reserve\'s 2022 Survey of Consumer Finances, downloaded from the CSV mirror linked in the README.
+    - Each family has five imputed records. This view keeps version 1, identified from Y1 and YY1, so each family appears once.
+    - The sample includes families who held back from applying for credit because they expected denial (TURNFEAR == 1), with net worth below $2 million.
+    - Cluster numbers are just labels. These groups have not been tested as credit-risk categories and are not suitable for lending decisions.
+    - K-means treats each family equally. Survey weights are used for the profile summaries, but the analysis does not calculate uncertainty for the full SCF survey design.
     """)
     st.dataframe(df[["YY1", "TURNFEAR", *FINANCIAL_FEATURES, "WGT"]].head(25), width="stretch")

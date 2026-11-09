@@ -1,66 +1,85 @@
 # U.S. Consumer Finance Segmentation
 
-An original, reproducible unsupervised-learning project using the public 2022 Survey of Consumer Finances (SCF). The analysis follows the broad learning pipeline from WQU Project 6—EDA, subgroup filtering, two-feature K-means, multi-feature K-means, model comparison, PCA visualization, and an interactive dashboard—using original code and a public dataset.
+This project looks at the finances of families who held back from applying for credit because they expected to be turned down. It uses the 2022 Survey of Consumer Finances (SCF), with a further restriction to net worth below $2 million.
 
-## Research question
+The analysis compares a simple debt-and-housing model with a five-variable K-means model. A Streamlit dashboard lets you change the number of clusters and the financial variables used.
 
-Within U.S. households who feared credit denial and had net worth below $2 million, what financial profiles emerge from clustering debt, housing, assets, income, and net worth?
+## What the results show
 
-## Data and sampling
+The filtered sample contains **732 families**, drawn from **4,595 families** in the source file.
 
-- **Official source:** Board of Governors of the Federal Reserve System, [2022 Survey of Consumer Finances](https://www.federalreserve.gov/econres/scf_2022.htm).
-- **CSV mirror used by the downloader:** [SCFP2022.csv](https://raw.githubusercontent.com/vaibhavselkar/Consumer-finance-in-USA-2022/main/SCFP2022.csv), a public GitHub copy of the Federal Reserve public-use data. The Federal Reserve landing page and codebook are the authoritative documentation.
-- The public file has 22,975 records for 4,595 families, with five multiply-imputed records per family. The pipeline derives implicate number from `Y1` and `YY1` as specified in the Federal Reserve codebook and keeps implicate 1 so each family appears once.
-- The project filters `TURNFEAR == 1` and `NETWORTH < 2,000,000`, then retains households with complete, finite values for selected financial measures and positive survey weights.
-- The 2022 survey's `TURNFEAR` item identifies respondents who considered applying for credit during the previous five years but changed their mind because they thought they might be denied.
+The debt-and-housing model produces a high silhouette score of **0.810** at four clusters. But a simple rule based on whether debt and home value are positive gives almost the same grouping: the adjusted Rand index (ARI) is **0.972**. Much of the apparent separation comes from that basic distinction.
 
-The CSV downloads on first run into `data/` and is excluded from Git. The script verifies required columns and fails with a useful message if the source schema changes.
+Adding assets, income, and net worth gives a broader view of the families' finances. At four clusters, this model has a silhouette score of **0.459**. The two scores describe separation in different feature spaces, so they are not a fair ranking of which model is better.
 
-## Pipeline
+The four mean profiles roughly describe a group with no home value and positive net worth, a lower-debt group, a negative-net-worth group, and a higher-home-value group. These are summaries of the groups, not descriptions that fit every family. The dashboard includes medians as well as means so large values do not tell the whole story.
 
-1. Inspect dimensions, missing values, subgroup sizes, and financial-variable distributions.
-2. Build a two-feature baseline from `DEBT` and `HOUSES`.
-3. Apply signed `log1p` transforms for skewed dollar measures, then standardize features.
-4. Compare k=2 through k=12 separately for both feature sets using inertia and silhouette; fit a reproducible four-cluster model for consistent segment comparison.
-5. Use a fixed five-feature financial set, display its 10%-trimmed variance ranking, fit the multi-feature model, and project it to two dimensions with PCA. Ranking all five candidates is descriptive, not feature selection.
-6. Compare assignments and repeat fits with multiple seeds to examine stability. K-means is fit without weights to match the educational workflow; `WGT` is used for descriptive cluster profiles, not population-level inference.
-7. Explore segments and feature sets in a Streamlit dashboard.
+### How stable are the groups?
 
-## Run locally
+| Check on the five-variable model | Result |
+| --- | --- |
+| Refit on 20 bootstrap samples | Mean ARI 0.980; lowest ARI 0.933 |
+| Refit using the other imputed versions of the data | ARI 0.929–0.943 on shared eligible families |
+| Increase the cluster count from four to six | Silhouette rises from 0.459 to 0.474 |
+
+ARI measures agreement between assignments; a value of 1 means the assignments match, even if the cluster numbers differ.
+
+Four clusters are kept as a common setting for the comparisons. They are not presented as the best possible choice. The full sweep from two to twelve clusters is in [reports/summary.json](reports/summary.json) and the dashboard.
+
+## Data preparation and model choices
+
+The source has 22,975 rows because each family appears in five imputed versions of the data. The main analysis keeps version 1, using `Y1 - 10 * YY1` to identify it. This avoids treating five records for one family as five separate families. The other versions are used in the sensitivity check.
+
+The sample keeps `TURNFEAR == 1` and `NETWORTH < 2,000,000`, then removes rows with missing or infinite financial values or nonpositive survey weights. The `TURNFEAR` question covers people who considered applying for credit in the previous five years but changed their mind because they expected denial.
+
+Both models use the same preparation:
+
+1. Transform dollar values with signed `log1p`. This reduces the influence of very large values while keeping zero and negative values, including negative net worth.
+2. Standardize the transformed variables before fitting K-means.
+3. Check inertia and silhouette across cluster counts, then compare the four-cluster assignments.
+
+The baseline uses `DEBT` and `HOUSES`. The second model adds `ASSET`, `INCOME`, and `NETWORTH`. A trimmed-variance table describes these five candidates; it does not select a smaller set. PCA is used only to display the fitted groups in two dimensions.
+
+K-means is fitted without survey weights. The weights are used afterward to calculate descriptive means and shares within the filtered sample.
+
+## Explore the dashboard
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
+# On Windows: .venv\Scripts\activate
 pip install -r requirements-lock.txt
 python analyze.py
 streamlit run app.py
 ```
 
-The analysis writes `outputs/summary.json` and `outputs/cluster_assignments.csv`. The dashboard downloads and prepares data automatically on first launch.
+Use Python 3.12 with the pinned dependencies. The first run downloads the CSV into `data/`, which is excluded from Git. The dashboard also prepares the data automatically when opened.
 
-## Interpretation limits
+The dashboard includes debt-and-housing clusters, a PCA view of the selected variables, group profiles, and cluster-count diagnostics. You can choose two to five variables and between two and eight clusters.
 
-Clusters are algorithmic summaries, not real or fixed consumer types. Results depend on feature set, transformations, k, and sample definition. The SCF uses a complex sample design and multiple imputation; this project selects one implicate for unique-family clustering and reports survey-weighted descriptive profiles, but does not compute population-level inferential standard errors. Do not use clusters to make credit, eligibility, or lending decisions. Results describe 2022 data and should not be read as current credit-market conditions.
+The analysis writes `outputs/summary.json` and `outputs/cluster_assignments.csv`. The full published summary is [reports/summary.json](reports/summary.json); `results_summary.json` is an older, shorter snapshot. Review a new run before replacing either published file.
 
-## References
+## Limits
 
-- Board of Governors of the Federal Reserve System. *2022 Survey of Consumer Finances: Codebook and Public Data*. [SCF data page](https://www.federalreserve.gov/econres/scf_2022.htm) · [Codebook](https://www.federalreserve.gov/econres/files/codebk2022.txt).
+The SCF is a complex survey with multiple imputation. Selecting one imputed version and weighting the profiles does not provide full survey-based uncertainty estimates. The bootstrap and alternative-imputation checks show how the assignments change; they are not population confidence intervals.
+
+Clusters also depend on the variables, transformations, and number of groups chosen. They summarize this part of the 2022 sample and have not been validated as credit-risk categories or lending tools.
+
+## Checks
+
+```bash
+python -m unittest discover -s tests -v
+python tests/dashboard_smoke.py
+```
+
+The unit tests cover one-record-per-family selection, duplicate-family rejection, and the signed log transform. The dashboard check tries default startup, empty and single-variable selections, multiple variables, and both ends of the cluster slider. GitHub Actions is configured to run these checks and the full analysis.
+
+The downloader checks the file against the SHA-256 in `data_provenance.json`. If the upstream file changes, the script stops so the new data can be reviewed before use.
+
+## Sources and background
+
+The workflow builds on the clustering topics in WQU Project 6: subgroup preparation, K-means, model comparison, PCA, and a dashboard.
+
+- Federal Reserve Board: [2022 SCF data page](https://www.federalreserve.gov/econres/scf_2022.htm) and [codebook](https://www.federalreserve.gov/econres/files/codebk2022.txt).
+- The downloader uses this [public CSV mirror](https://raw.githubusercontent.com/vaibhavselkar/Consumer-finance-in-USA-2022/main/SCFP2022.csv). The Federal Reserve documentation is the reference for variable definitions.
 - Aladangady, A., et al. (2023). “Changes in U.S. Family Finances from 2019 to 2022: Evidence from the Survey of Consumer Finances.” *Federal Reserve Bulletin*.
-
-## Findings and validation
-
-- The first-implicate subgroup contains **732 households**, from **4,595 source families**. Two-feature silhouette is 0.810; five-feature silhouette is 0.459. These are within-space separation measures, not prediction accuracy or directly comparable model-selection scores across feature spaces.
-- Two-feature labels closely reproduce four debt/home-presence categories (**ARI 0.972**). The high silhouette largely reflects this simple structure, so the rule benchmark is reported explicitly.
-- Five-feature assignments are stable to 20 household bootstrap refits (mean ARI **0.980**, minimum **0.933**) and show ARI **0.929–0.943** against other implicates on shared eligible households. These are exploratory sensitivity checks, not complex-survey uncertainty estimates.
-
-Four clusters are retained for comparison, not claimed as the optimal number: multi-feature silhouette rises from 0.459 at k=4 to 0.474 at k=6 (rounded). Inspect the full sweep in `reports/summary.json` and the dashboard.
-
-Descriptive profiles include unweighted medians and counts, weighted means and subgroup shares. At k=4 the reported mean profiles describe: a no-home-value group with positive net worth; a lower-debt group; a negative-net-worth group; and a higher-housing-value group. These are descriptions of group averages, not labels that describe every household. IDs are arbitrary and can change after refitting.
-
-## Engineering and verification
-
-- The dashboard caches diagnostics and fitted models, distinguishes source families from the filtered sample, and requires at least two features for PCA.
-- `data_provenance.json` pins reviewed source bytes with a SHA-256 checksum. A changed download fails clearly until the source is reviewed.
-- `requirements-lock.txt` records the tested Python 3.12 Linux dependency environment.
-- Run `python -m unittest discover -s tests -v` and `python tests/dashboard_smoke.py`. The latter checks default startup, empty/one/multiple feature selections, and cluster-count endpoints. GitHub Actions also runs the full analysis.
-- `reports/summary.json` is the full reviewed result. `results_summary.json` retains the earlier compact summary. Regenerate with `python analyze.py` and review outputs before refreshing published snapshots.
