@@ -1,0 +1,15 @@
+{
+  "data_year": 2022,
+  "source_rows": 22975,
+  "source_families": 4595,
+  "eligible_households": 732,
+  "subgroup": "TURNFEAR == 1 and NETWORTH < 2000000; implicate 1; complete financial features and positive WGT",
+  "multi_feature_set": ["NETWORTH", "HOUSES", "DEBT", "ASSET", "INCOME"],
+  "k": 4,
+  "two_feature_silhouette_debt_houses": 0.8096256598,
+  "multi_feature_silhouette": 0.4586671007,
+  "agreement_between_feature_sets_ari": 0.6195647649,
+  "multi_feature_seed_stability_mean_ari": 1.0,
+  "pca_variance_ratio": [0.4808666133, 0.2344307575],
+  "caveat": "Exploratory unweighted clustering; survey weights are used only for descriptive profiles. Not a lending or creditworthiness model."
+}
